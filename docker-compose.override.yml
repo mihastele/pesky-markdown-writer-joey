@@ -1,0 +1,42 @@
+# Pesky Markdown Writer — Docker Compose Override
+# This file extends the official Supabase docker-compose.yml
+# with the Nuxt application service.
+#
+# Usage: Place this in the supabase-docker/docker/ directory
+#        (the setup-docker.sh script does this automatically)
+
+services:
+  # The Pesky Markdown Writer Nuxt application
+  app:
+    container_name: pesky-markdown-writer
+    build:
+      context: ../../
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount source code for hot-reload during development
+      - ../../app:/app/app:z
+      - ../../nuxt.config.ts:/app/nuxt.config.ts:z
+      - ../../public:/app/public:z
+      # Don't mount node_modules — use container's copy
+      - /app/node_modules
+      - /app/.nuxt
+    environment:
+      # Point to Kong (Supabase API gateway) inside Docker network
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      # For client-side, use the host-accessible URL
+      NUXT_PUBLIC_SUPABASE_URL: http://localhost:8000
+      NUXT_PUBLIC_SUPABASE_KEY: ${ANON_KEY}
+    depends_on:
+      kong:
+        condition: service_started
+      auth:
+        condition: service_healthy
+      rest:
+        condition: service_started
+      db:
+        condition: service_healthy
